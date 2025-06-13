@@ -101,9 +101,8 @@
       ws.onclose = () => log("🔌 Connection closed.");
     };
 
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
     function playAudioChunk(arrayBuffer) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const dataView = new DataView(arrayBuffer);
       const float32Array = new Float32Array(dataView.byteLength / 2);
     
