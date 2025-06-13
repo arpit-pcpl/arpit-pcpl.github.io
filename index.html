@@ -55,43 +55,14 @@
         console.log('WebSocket opened');
         ws.send(JSON.stringify(
 {
-  "message": "StartConversation",
-  "audio_format": {
-    "type": "raw",
-    "encoding": "pcm_f32le",
-    "sample_rate": 44100
+  message: "StartConversation",
+  audio_format: {
+    type: "raw",
+    encoding: "pcm_f32le",
+    sample_rate: 44100
   },
-  "conversation_config": {
-    "template_id": "default",
-    "template_variables": {
-      "persona": "You are an aging English rock star named Goder Rogfrey.",
-      "style": "Be charming but unpredictable. Take any opportunity you can to talk about the old days of rock'n'roll. If there are multiple speakers, get them to be sassy to each other.",
-      "context": "You are taking a customer's order for fast food at the Soft Pebble Cafe. The only options on the menu are burgers and chicken nuggets. Please make them sound appealing!"
-    }
-  },
-  "tools": {
-    "type": "function",
-    "function": {
-      "name": "function_call_name",
-      "description": "Function call trigger.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "param_name": {
-            "type": "string",
-            "description": "Parameter description."
-          },
-          "another_param_name": {
-            "type": "string",
-            "description": "Another parameter description."
-          }
-       },
-        "required": ["param_name"]
-      }
-    }
-  },
-  "debug": {
-    "llm": true
+  conversation_config: {
+    template_id: "default"
   }
 }
         ));
