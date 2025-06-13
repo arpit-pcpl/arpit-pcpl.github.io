@@ -111,7 +111,7 @@
         float32Array[i] = int16Array[i] / 32768;
       }
     
-      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 22050);
+      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
       audioBuffer.copyToChannel(float32Array, 0);
     
       const source = audioContext.createBufferSource();
