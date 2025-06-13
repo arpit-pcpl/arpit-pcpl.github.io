@@ -2,39 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Speechmatics Flow Agent Chat</title>
+  <title>Speechmatics Flow - Agent Chat</title>
+  <style>
+    body { font-family: Arial; margin: 2rem; }
+    input, button { font-size: 1rem; margin: 0.5rem 0; width: 100%; padding: 0.5rem; }
+    pre { background: #f0f0f0; padding: 1rem; height: 300px; overflow-y: auto; white-space: pre-wrap; }
+  </style>
 </head>
 <body>
-  <h2>🎤 Speechmatics Flow - Agent Conversation</h2>
-  <button id="start">Start Conversation</button>
-  <button id="stop" disabled>Stop</button>
+  <h2>🎤 Speechmatics Flow v1 - Agent Chat</h2>
+  <label for="jwt">🔐 Enter Temporary JWT Token:</label>
+  <input type="text" id="jwt" placeholder="Paste your Speechmatics JWT here" />
+  
+  <button id="start">▶️ Start Conversation</button>
+  <button id="stop" disabled>⏹️ Stop</button>
+  
   <pre id="output"></pre>
 
   <script>
     const startBtn = document.getElementById("start");
     const stopBtn = document.getElementById("stop");
+    const jwtInput = document.getElementById("jwt");
     const output = document.getElementById("output");
-
-    const jwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzbWlzc3VlciIsImF1ZCI6WyJldSJdLCJleHAiOjE3NDk4Mzc4MjIsIm5iZiI6MTc0OTgzNDE2MiwiaWF0IjoxNzQ5ODM3NzYyLCJjb250cmFjdF9pZCI6IjE2NjcxNiIsInByb2plY3RfaWQiOiIxNjY3MTYiLCJwcm9kdWN0IjoiZmxvdyIsInVzZXJfaWQiOiJzZWxmc2VydmljZS0xNjY3MTciLCJhY2NvdW50X3R5cGUiOiJmcmVlIiwiY29ubmVjdGlvbl9xdW90YSI6IjMifQ.g39m9giKP3tTkr0SIjvq3aXeM36gqGYxk9Bj3zAOAxoRPhvQ-rg8QFHKxvnPxkJzWlqURuVE2XDcsZ2WwN9_zZuxPFPd4tG0dkPxadijsKV54I9_Js0gnl8Ruu9pMKL8BS1a-tnx9bfoCu1OsFJxJVGvDwMmqozKNLwVAmMlbv83QHa_Mh05bjU5kN64i9rBa71U9Go14YtRVwp8L6oW8Glu_kdsSQEl-BHP0n0A4d1kou1MOZS-R87vhdPhnjgwO1bJx565SspfKN3sfdiiz3RP_iZCghU-dNz8kAjCOyrt0-7viv-dWTwbiADncRr1U26holwAj0qxwYpoIwoFO9So-R5imFPwlYy8FN9hKFimBM5XqsTrY26JwjLyhmey-LZYUuQPeF2_qViALuNc9qesh7KGNAst9hh8ZivOZfA6PFWdw4lcDVTPbAcDY8LsxVQfeMf8aIAGT7F6uWvk9EyZR40bCtOpjvnevZddBQ0F-3AJbA8HyT6lZ9CjJWzY"; // 👈 Replace this with your temporary JWT
-    const WS_URL = `wss://flow.api.speechmatics.com/v1/flow?jwt=${jwt}`;
 
     let ws, audioContext, processor, input, stream;
 
     function log(msg) {
       output.textContent += msg + '\n';
+      output.scrollTop = output.scrollHeight;
     }
 
     startBtn.onclick = async () => {
+      const jwt = jwtInput.value.trim();
+      if (!jwt) {
+        alert("Please enter a valid JWT.");
+        return;
+      }
+
       startBtn.disabled = true;
       stopBtn.disabled = false;
+      const WS_URL = `wss://flow.api.speechmatics.com/v1/flow?jwt=${jwt}`;
 
       log("🔌 Connecting to Speechmatics Flow...");
       ws = new WebSocket(WS_URL);
       ws.binaryType = "arraybuffer";
 
       ws.onopen = async () => {
-        log("✅ WebSocket connected");
+        log("✅ WebSocket connected.");
 
+        // Send StartConversation
         ws.send(JSON.stringify({
           message: "StartConversation",
           audio_format: {
@@ -70,7 +86,7 @@
           }
         }));
 
-        // Start audio
+        // Start audio stream
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new AudioContext({ sampleRate: 44100 });
         input = audioContext.createMediaStreamSource(stream);
@@ -88,22 +104,27 @@
       };
 
       ws.onmessage = event => {
-        const data = JSON.parse(event.data);
-        if (data.message === "Transcript") {
-          const msg = data?.transcript?.alternatives?.[0]?.content;
-          if (msg) log("🗣️ " + msg);
-        } else {
-          log("📩 " + JSON.stringify(data));
+        try {
+          const data = JSON.parse(event.data);
+          if (data.message === "Transcript") {
+            const content = data?.transcript?.alternatives?.[0]?.content;
+            if (content) log("🗣️ " + content);
+          } else {
+            log("📥 " + JSON.stringify(data));
+          }
+        } catch (err) {
+          log("⚠️ Could not parse message: " + event.data);
         }
       };
 
       ws.onerror = (err) => log("❌ WebSocket error: " + err.message);
-      ws.onclose = () => log("🔌 Connection closed");
+      ws.onclose = () => log("🔌 Connection closed.");
     };
 
     stopBtn.onclick = () => {
-      startBtn.disabled = false;
       stopBtn.disabled = true;
+      startBtn.disabled = false;
+
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
@@ -111,6 +132,7 @@
       if (input) input.disconnect();
       if (audioContext) audioContext.close();
       if (stream) stream.getTracks().forEach(t => t.stop());
+
       log("🛑 Stopped conversation.");
     };
   </script>
