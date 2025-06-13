@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Speechmatics Real-Time Transcription with Agent</title>
+</head>
+<body>
+  <h1>Speechmatics Real-Time Transcription</h1>
+  <button id="startBtn">Start Transcription</button>
+  <button id="stopBtn" disabled>Stop Transcription</button>
+  <pre id="transcript"></pre>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const transcript = document.getElementById('transcript');
+
+    let ws;
+    let audioContext, processor, input, stream;
+
+    const API_TOKEN = 'YOUR_API_TOKEN_HERE'; // 🔒 Replace this
+    const AGENT_ID = 'YOUR_AGENT_ID_HERE';   // 🎯 Replace this
+    const LANG = 'en';
+
+    const SM_URL = `wss://eu.rt.speechmatics.com/v2/${LANG}?auth_token=${API_TOKEN}&agent=${AGENT_ID}`;
+
+    startBtn.onclick = async () => {
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      transcript.textContent = '';
+
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new AudioContext();
+      input = audioContext.createMediaStreamSource(stream);
+
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = e => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        const int16Data = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          int16Data[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32767));
+        }
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(int16Data.buffer);
+        }
+      };
+
+      input.connect(processor);
+      processor.connect(audioContext.destination);
+
+      ws = new WebSocket(SM_URL);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        console.log('WebSocket opened');
+        ws.send(JSON.stringify({
+          type: 'start',
+          transcription_config: {
+            language: LANG,
+            operating_point: 'enhanced',
+            enable_partials: true
+          }
+        }));
+      };
+
+      ws.onmessage = event => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'transcript') {
+          data.channels[0].alternatives.forEach(alt => {
+            transcript.textContent += alt.content + ' ';
+          });
+        }
+      };
+
+      ws.onclose = () => console.log('WebSocket closed');
+    };
+
+    stopBtn.onclick = () => {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+        ws.close();
+      }
+
+      if (processor) processor.disconnect();
+      if (input) input.disconnect();
+      if (audioContext) audioContext.close();
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  </script>
+</body>
+</html>
