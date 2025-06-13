@@ -22,7 +22,7 @@
     // const AGENT_ID = '3668c60a-1c08-4670-81e9-97e12e5a4149:latest'; 
     const LANG = 'en';
 
-    const SM_URL = `wss://eu.rt.speechmatics.com/v2/${LANG}?auth_token=${API_TOKEN}`; // &agent=${AGENT_ID}`;
+    const SM_URL = `wss://flow.api.speechmatics.com/v1/flow?jwt=${API_TOKEN}`; // &agent=${AGENT_ID}`;
 
     startBtn.onclick = async () => {
       startBtn.disabled = true;
