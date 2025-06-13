@@ -101,23 +101,55 @@
       ws.onclose = () => log("🔌 Connection closed.");
     };
 
+    let flowAudioContext = null;
+    let playbackQueue = [];
+    let isPlaying = false;
+    
+    function initFlowAudio() {
+      if (!flowAudioContext) {
+        flowAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+      }
+    }
+    
     function playAudioChunk(arrayBuffer) {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      initFlowAudio();
+    
+      // Convert Int16 PCM to Float32
       const dataView = new DataView(arrayBuffer);
-      const float32Array = new Float32Array(dataView.byteLength / 2);
+      const float32Array = new Float32Array(arrayBuffer.byteLength / 2);
     
       for (let i = 0; i < float32Array.length; i++) {
         const int16 = dataView.getInt16(i * 2, true); // little-endian
         float32Array[i] = int16 / 32768;
       }
     
-      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
-      audioBuffer.copyToChannel(float32Array, 0);
+      // Queue chunk
+      playbackQueue.push(float32Array);
     
-      const source = audioContext.createBufferSource();
+      if (!isPlaying) {
+        isPlaying = true;
+        schedulePlayback();
+      }
+    }
+    
+    function schedulePlayback() {
+      if (playbackQueue.length === 0) {
+        isPlaying = false;
+        return;
+      }
+    
+      const bufferData = playbackQueue.shift();
+      const audioBuffer = flowAudioContext.createBuffer(1, bufferData.length, 44100);
+      audioBuffer.copyToChannel(bufferData, 0);
+    
+      const source = flowAudioContext.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
+      source.connect(flowAudioContext.destination);
       source.start();
+    
+      source.onended = () => {
+        schedulePlayback();
+      };
     }
 
     stopBtn.onclick = () => {
