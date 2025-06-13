@@ -2,97 +2,116 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Speechmatics Real-Time Transcription with Agent</title>
+  <title>Speechmatics Flow Agent Chat</title>
 </head>
 <body>
-  <h1>Speechmatics Real-Time Transcription</h1>
-  <button id="startBtn">Start Transcription</button>
-  <button id="stopBtn" disabled>Stop Transcription</button>
-  <pre id="transcript"></pre>
+  <h2>🎤 Speechmatics Flow - Agent Conversation</h2>
+  <button id="start">Start Conversation</button>
+  <button id="stop" disabled>Stop</button>
+  <pre id="output"></pre>
 
   <script>
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const transcript = document.getElementById('transcript');
+    const startBtn = document.getElementById("start");
+    const stopBtn = document.getElementById("stop");
+    const output = document.getElementById("output");
 
-    let ws;
-    let audioContext, processor, input, stream;
+    const jwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzbWlzc3VlciIsImF1ZCI6WyJldSJdLCJleHAiOjE3NDk4Mzc4MjIsIm5iZiI6MTc0OTgzNDE2MiwiaWF0IjoxNzQ5ODM3NzYyLCJjb250cmFjdF9pZCI6IjE2NjcxNiIsInByb2plY3RfaWQiOiIxNjY3MTYiLCJwcm9kdWN0IjoiZmxvdyIsInVzZXJfaWQiOiJzZWxmc2VydmljZS0xNjY3MTciLCJhY2NvdW50X3R5cGUiOiJmcmVlIiwiY29ubmVjdGlvbl9xdW90YSI6IjMifQ.g39m9giKP3tTkr0SIjvq3aXeM36gqGYxk9Bj3zAOAxoRPhvQ-rg8QFHKxvnPxkJzWlqURuVE2XDcsZ2WwN9_zZuxPFPd4tG0dkPxadijsKV54I9_Js0gnl8Ruu9pMKL8BS1a-tnx9bfoCu1OsFJxJVGvDwMmqozKNLwVAmMlbv83QHa_Mh05bjU5kN64i9rBa71U9Go14YtRVwp8L6oW8Glu_kdsSQEl-BHP0n0A4d1kou1MOZS-R87vhdPhnjgwO1bJx565SspfKN3sfdiiz3RP_iZCghU-dNz8kAjCOyrt0-7viv-dWTwbiADncRr1U26holwAj0qxwYpoIwoFO9So-R5imFPwlYy8FN9hKFimBM5XqsTrY26JwjLyhmey-LZYUuQPeF2_qViALuNc9qesh7KGNAst9hh8ZivOZfA6PFWdw4lcDVTPbAcDY8LsxVQfeMf8aIAGT7F6uWvk9EyZR40bCtOpjvnevZddBQ0F-3AJbA8HyT6lZ9CjJWzY"; // 👈 Replace this with your temporary JWT
+    const WS_URL = `wss://flow.api.speechmatics.com/v1/flow?jwt=${jwt}`;
 
-    const API_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzbWlzc3VlciIsImF1ZCI6WyJldSJdLCJleHAiOjE3NDk4MzcwMzMsIm5iZiI6MTc0OTgzMzM3MywiaWF0IjoxNzQ5ODM2OTczLCJjb250cmFjdF9pZCI6IjE2NjcxNiIsInByb2plY3RfaWQiOiIxNjY3MTYiLCJwcm9kdWN0IjoiZmxvdyIsInVzZXJfaWQiOiJzZWxmc2VydmljZS0xNjY3MTciLCJhY2NvdW50X3R5cGUiOiJmcmVlIiwiY29ubmVjdGlvbl9xdW90YSI6IjMifQ.OyUugJAJK9ChRvsffsibE4z1x5chtG85jRQ8TtyzbzR5P1FyUfsCEUw_pz5QZFHAVktwLsDR_QON6NIaeRXFDmjF5LbfMJPSSfqBeYKacITlI3mB1lk1RsPn2ff4MvPsQmsZOBe8dHWafrsBAbvt6fAEn2pbbaWgpAsSh2fC4JJV_NXC3SuRKEdi0jUiho0PIV7yBF0Z9aHduZe1HW_G0rlTLZnO2Z_9WccrEMDhXd1uzSogVJmh29laM2XlE1PffysHecVfvFUQM4ld5h2N1uNyxVR8gGf98-M8ZGsSfqfZkK0deLS-4aSyW-mMKC8ZnuJLvea1wnRhqRvP-Avzbpl6-X66kBi1jSx6zA5abNLdZSG21Qujfix3JjqHb9hQfsJA3hnr__HDWD-jaBJoZp-ALYxEz2rqBPhICb27G2Sc7LwAqBWQxXnEoeUFMOfyueO5KEqkgJgF0KPZYMDZxEToxl1oGhFXXEbHPP-ktRdne4nLXK1F2ZbZnsdw_x24';
-    // const AGENT_ID = '3668c60a-1c08-4670-81e9-97e12e5a4149:latest'; 
-    const LANG = 'en';
+    let ws, audioContext, processor, input, stream;
 
-    const SM_URL = `wss://flow.api.speechmatics.com/v1/flow?jwt=${API_TOKEN}`; // &agent=${AGENT_ID}`;
+    function log(msg) {
+      output.textContent += msg + '\n';
+    }
 
     startBtn.onclick = async () => {
       startBtn.disabled = true;
       stopBtn.disabled = false;
-      transcript.textContent = '';
 
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new AudioContext();
-      input = audioContext.createMediaStreamSource(stream);
+      log("🔌 Connecting to Speechmatics Flow...");
+      ws = new WebSocket(WS_URL);
+      ws.binaryType = "arraybuffer";
 
-      processor = audioContext.createScriptProcessor(4096, 1, 1);
-      processor.onaudioprocess = e => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const int16Data = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          int16Data[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32767));
-        }
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(int16Data.buffer);
-        }
-      };
+      ws.onopen = async () => {
+        log("✅ WebSocket connected");
 
-      input.connect(processor);
-      processor.connect(audioContext.destination);
+        ws.send(JSON.stringify({
+          message: "StartConversation",
+          audio_format: {
+            type: "raw",
+            encoding: "pcm_f32le",
+            sample_rate: 44100
+          },
+          conversation_config: {
+            template_id: "default",
+            template_variables: {
+              persona: "You are an aging English rock star named Goder Rogfrey.",
+              style: "Be charming but unpredictable. Take any opportunity you can to talk about the old days of rock'n'roll. If there are multiple speakers, get them to be sassy to each other.",
+              context: "You are taking a customer's order for fast food at the Soft Pebble Cafe. The only options on the menu are burgers and chicken nuggets. Please make them sound appealing!"
+            }
+          },
+          tools: {
+            type: "function",
+            function: {
+              name: "function_call_name",
+              description: "Function call trigger.",
+              parameters: {
+                type: "object",
+                properties: {
+                  param_name: { type: "string", description: "Parameter description." },
+                  another_param_name: { type: "string", description: "Another parameter description." }
+                },
+                required: ["param_name"]
+              }
+            }
+          },
+          debug: {
+            llm: true
+          }
+        }));
 
-      ws = new WebSocket(SM_URL);
-      ws.binaryType = 'arraybuffer';
+        // Start audio
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new AudioContext({ sampleRate: 44100 });
+        input = audioContext.createMediaStreamSource(stream);
+        processor = audioContext.createScriptProcessor(4096, 1, 1);
 
-      ws.onopen = () => {
-        console.log('WebSocket opened');
-        ws.send(JSON.stringify(
-{
-  message: "StartConversation",
-  audio_format: {
-    type: "raw",
-    encoding: "pcm_f32le",
-    sample_rate: 44100
-  },
-  conversation_config: {
-    template_id: "default"
-  }
-}
-        ));
+        processor.onaudioprocess = e => {
+          const float32Data = e.inputBuffer.getChannelData(0);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(float32Data.buffer);
+          }
+        };
+
+        input.connect(processor);
+        processor.connect(audioContext.destination);
       };
 
       ws.onmessage = event => {
         const data = JSON.parse(event.data);
-        if (data.type === 'transcript') {
-          data.channels[0].alternatives.forEach(alt => {
-            transcript.textContent += alt.content + ' ';
-          });
+        if (data.message === "Transcript") {
+          const msg = data?.transcript?.alternatives?.[0]?.content;
+          if (msg) log("🗣️ " + msg);
+        } else {
+          log("📩 " + JSON.stringify(data));
         }
       };
 
-      ws.onclose = () => console.log('WebSocket closed');
+      ws.onerror = (err) => log("❌ WebSocket error: " + err.message);
+      ws.onclose = () => log("🔌 Connection closed");
     };
 
     stopBtn.onclick = () => {
       startBtn.disabled = false;
       stopBtn.disabled = true;
-
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'stop' }));
         ws.close();
       }
-
       if (processor) processor.disconnect();
       if (input) input.disconnect();
       if (audioContext) audioContext.close();
-      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      log("🛑 Stopped conversation.");
     };
   </script>
 </body>
