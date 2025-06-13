@@ -101,14 +101,15 @@
       ws.onclose = () => log("🔌 Connection closed.");
     };
 
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
     function playAudioChunk(arrayBuffer) {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const int16Array = new Int16Array(arrayBuffer);
-      const float32Array = new Float32Array(int16Array.length);
+      const dataView = new DataView(arrayBuffer);
+      const float32Array = new Float32Array(dataView.byteLength / 2);
     
-      // Convert 16-bit PCM to Float32 (normalize)
-      for (let i = 0; i < int16Array.length; i++) {
-        float32Array[i] = int16Array[i] / 32768;
+      for (let i = 0; i < float32Array.length; i++) {
+        const int16 = dataView.getInt16(i * 2, true); // little-endian
+        float32Array[i] = int16 / 32768;
       }
     
       const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
